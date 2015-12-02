@@ -9,7 +9,7 @@
 #This script will scan each file and append the output data with the simulation 
 #data provided. The data is expected in the following comma separated format:
 #BeamEnergy, ExcitedState, BarNum, Counts(perRx), Uncertainty(%)
-#All lines containing anything other than a literla contained in an exponential
+#All lines containing anything other than a literal contained in an exponential
 #number or a comma is ignored, the others are considered valid data to be parsed.
 #The output is given as bar number followed by a set of data for each excited 
 #state containing the following: Excited State, Counts(perRx), Uncertainty(%).
@@ -50,7 +50,7 @@ sub ScanFile {
 	open FILE, $_[0] or die $!;
 
 	while (<FILE>) {
-		#We ignore any line contating anything execpt ([^]) a digit (\d), comma, 
+		#We ignore any line containing anything except ([^]) a digit (\d), comma, 
 		# period (\.), capital E, plus sign (\+), minus sign, or any type of 
 		# white space (\s).
 		if ($_ !=~ m/[^\d,\.E\+-\s]/) {
