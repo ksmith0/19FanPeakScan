@@ -10,12 +10,15 @@
 #the second file specified by --file2 is then scanned replacing anything form 
 #file1. The files are scanned by first finding a line containing "Bar \d+", where 
 #\d+ is an integer value. Then any line following this with a number are scanned
-#and values in the columns matching that in @columnsToCapture are stored. This 
-#is continued until another "Bar \d+" line is found. The output is then dumped 
+#and values in the columns matching that in @columnsToCapture are stored. This
+#is continued until a line containing anything other than a literal contained 
+#in an exponential number or a comma found, the others are considered valid 
+#data to be parsed. The output is then dumped 
 #to the screen containing the bar number followed by the series of values 
 #matching the specified columns and repeating for each line found following "Bar
 #\d+".
 
+use strict;
 use Getopt::Long;
 
 #The list of column numbers to store starting from 0.
@@ -37,26 +40,29 @@ GetOptions ('file1=s' => \$file1,
 		'file2:s' => \$file2);
 
 #Check that the options are valid
+my $error = 0;
 if (!-f $file1) {
 	print STDERR ("ERROR: File 1 specified '$file1' is not a regular file!\n");
-	$error = true;
+	$error = 1;
 }
 if ($file2 ne "" && !-f $file2) {
 	print STDERR ("ERROR: File 2 specified '$file2' is not a regular file!\n");
-	$error = true;
+	$error = 1;
 }
 #Exit if the options were invalid
 if ($error) {exit;}
 
-#Append/Replace the txt file to the data storage
+#Append/Replace the first file to the data storage
 UpdateOutputData($file1);
 
-#Append/Replace the peak file to the data storage
-UpdateOutputData($file2);
+#Append/Replace the second file to the data storage
+if ($file2 ne '') {
+	UpdateOutputData($file2);
+}
 
 #Output the resulting data.
 print "Bar x0i Ai dAi\n";
-for $bar (sort {$a <=> $b} keys %outData) {
+for my $bar (sort {$a <=> $b} keys %outData) {
 	my $href = $outData{$bar};
 	print "$bar ";
 	foreach (sort {$a <=> $b} keys %{$href}) {
@@ -68,16 +74,18 @@ for $bar (sort {$a <=> $b} keys %outData) {
 sub ScanTable {	
 	#Make a hash to store the peak information.
 	my %peaks;
+	my $tableFound = 0;
 
 	#Loop over the array again searching for the peak data
 	while (my $line = shift(@_)) {
 		#If we find the text BarID then the table has ended.
-		if ($line =~ m/Bar/) {
+		if ($tableFound && $line =~ m/[^\d,\.E\+-\s]/) {
 			unshift @_, $line;
 			last;
 		}
 		#Otherwise we look for lines with numbers.
 		elsif ($line =~ m/(\d+\.\d+\s+)+/) {
+			$tableFound = 1;
 			#Remove leading and trailing space
 			$line =~ s/^\s+|\s+$//g;
 			#Split the rest of the line on white space
