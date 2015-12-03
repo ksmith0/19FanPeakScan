@@ -31,7 +31,7 @@ void PeakFit::LoadComponents(const char* filename) {
 		float excitedState = -1;
 		double countsPerRx = 0, uncertainty = 100;
 		while (linestr >> excitedState >> countsPerRx >> uncertainty) {
-			printf("%f %e %e\n",excitedState,countsPerRx, uncertainty);
+			//printf("%f %e %e\n",excitedState,countsPerRx, uncertainty);
 			components_[barNum].push_back(countsPerRx);
 		}
 		if (components_[barNum].size() > maxNumStates_) maxNumStates_ = components_[barNum].size();
@@ -94,7 +94,7 @@ double PeakFit::operator() (double *x, double *p) {
 
 	double retVal = 0;
 	for (unsigned int i=0;i<components_[bar].size();i++) {
-		retVal += fabs(p[i]) * components_[bar][i];
+		retVal += fabs(p[i+1]) * components_[bar][i];
 	}
 	return retVal;
 }
