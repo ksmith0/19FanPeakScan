@@ -5,6 +5,7 @@
 #include <string>
 #include "TF1.h"
 #include "TGraphErrors.h"
+#include "TStyle.h"
 
 #if defined(__CINT__) && !defined(__MAKECINT__) 
 	#include "PeakFit.so"
@@ -13,6 +14,8 @@
 #endif
 
 TGraphErrors *PerformFit(const char *expFilename, const char *simFilename) {
+	gStyle->SetOptFit(11111);
+
 	TGraphErrors *graph = new TGraphErrors();
 	
 	std::ifstream file(expFilename);
@@ -29,7 +32,12 @@ TGraphErrors *PerformFit(const char *expFilename, const char *simFilename) {
 		float x0 = -1;
 		double A = 0, dA = 100;
 		double sumA = 0, dSumA = 0;
+		bool first = true;
 		while (linestr >> x0 >> A >> dA) {
+			if (first) {
+				first = false;
+				continue;
+			}
 			sumA += A;
 			dSumA += sqrt(pow(dSumA,2) + pow(dA,2));
 		}
@@ -48,8 +56,18 @@ TGraphErrors *PerformFit(const char *expFilename, const char *simFilename) {
 
 	PeakFit *fit = new PeakFit(simFilename);
 	TF1 *f = new TF1("fit",fit,0,41,fit->GetMaxNumStates());
+	f->FixParameter(1,0);
 
 	graph->Fit(f,"EM");	
+	f->SetLineColor(kBlue);
+
+
+	const int numStates = fit->GetMaxNumStates();
+	for (int i=0;i<numStates;i++) {
+		fit->GetComponent(i,f->GetParameter(i))->Draw("SAME");
+	}
+
+	
 
 	return graph;
 }

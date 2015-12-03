@@ -3,11 +3,18 @@
 #include <sstream>
 #include <string>
 
-PeakFit::PeakFit(const char* filename) {
+PeakFit::PeakFit(const char* filename) :
+	maxNumStates_(0)
+{
 	LoadComponents(filename);
 }
 
 void PeakFit::LoadComponents(const char* filename) {
+	while (!fitComp_.empty()) {
+		delete fitComp_.back();
+		fitComp_.pop_back();
+	}
+
 	std::ifstream file(filename);
 
 	std::string line;
@@ -21,15 +28,18 @@ void PeakFit::LoadComponents(const char* filename) {
 
 		if (components_.size() <= barNum) components_.resize(barNum+1);
 
-		int excitedState = -1;
+		float excitedState = -1;
 		double countsPerRx = 0, uncertainty = 100;
 		while (linestr >> excitedState >> countsPerRx >> uncertainty) {
-			//printf("%d %e %e\n",excitedState,countsPerRx, uncertainty);
+			printf("%f %e %e\n",excitedState,countsPerRx, uncertainty);
 			components_[barNum].push_back(countsPerRx);
 		}
+		if (components_[barNum].size() > maxNumStates_) maxNumStates_ = components_[barNum].size();
 	}
 
 	file.close();
+
+	fitComp_.resize(maxNumStates_, NULL);
 }
 
 double PeakFit::GetComponent(unsigned int barNum, unsigned int state) {
@@ -51,15 +61,23 @@ unsigned int PeakFit::GetNumStates(unsigned int barNum) {
 	return components_[barNum].size();
 }
 
-unsigned int PeakFit::GetMaxNumStates() {
-	unsigned int max = 0;
-	for (size_t i=0;i<components_.size();i++) {
-		if (components_[i].size() > max) max = components_[i].size();
+TF1 *PeakFit::GetComponent(unsigned int state, double scale) {
+	if (state > maxNumStates_) return NULL;
+
+	if (!fitComp_[state]) {
+		fitComp_[state] = new TF1(Form("comp%d",state),this,0,components_.size(),maxNumStates_);
 	}
-	return max;
+
+	fitComp_[state]->SetParameter(state,scale);
+
+	return fitComp_[state];
 }
 
 PeakFit::~PeakFit() {
+	while (!fitComp_.empty()) {
+		delete fitComp_.back();
+		fitComp_.pop_back();
+	}
 
 }
 
@@ -70,12 +88,13 @@ PeakFit::~PeakFit() {
  * \return The value of function with the specified bar number (x) and parameters p.
  */
 double PeakFit::operator() (double *x, double *p) {
-	unsigned int bar = x[0];
+	//Compute the integer value of x by rounding
+	unsigned int bar = x[0] + 0.5;
 	if (bar >= components_.size()) return 0;
 
 	double retVal = 0;
 	for (unsigned int i=0;i<components_[bar].size();i++) {
-		retVal += p[i] * components_[bar][i];
+		retVal += fabs(p[i]) * components_[bar][i];
 	}
 	return retVal;
 }
