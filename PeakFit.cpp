@@ -51,11 +51,32 @@ unsigned int PeakFit::GetNumStates(unsigned int barNum) {
 	return components_[barNum].size();
 }
 
+unsigned int PeakFit::GetMaxNumStates() {
+	unsigned int max = 0;
+	for (size_t i=0;i<components_.size();i++) {
+		if (components_[i].size() > max) max = components_[i].size();
+	}
+	return max;
+}
+
 PeakFit::~PeakFit() {
 
 }
 
+/**We treat the x variable as a bar and cast it to an integer to round down. After 
+ * ensuring the bar number is valid we sum the components multiplied by a scaling
+ * factor chosen from the provided parameters.
+ *
+ * \return The value of function with the specified bar number (x) and parameters p.
+ */
 double PeakFit::operator() (double *x, double *p) {
-	return 0;
+	unsigned int bar = x[0];
+	if (bar >= components_.size()) return 0;
+
+	double retVal = 0;
+	for (unsigned int i=0;i<components_[bar].size();i++) {
+		retVal += p[i] * components_[bar][i];
+	}
+	return retVal;
 }
 
