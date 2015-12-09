@@ -4,6 +4,7 @@
 #include <sstream>
 #include <string>
 #include "TF1.h"
+#include "TFitResult.h"
 #include "TGraphErrors.h"
 #include "TStyle.h"
 
@@ -56,10 +57,9 @@ TGraphErrors *PerformFit(const char *expFilename, const char *simFilename) {
 
 	PeakFit *fit = new PeakFit(simFilename);
 	TF1 *f = new TF1("fit",fit,0,41,fit->GetMaxNumStates());
-	f->FixParameter(1,0);
-
-	graph->Fit(f,"EM");	
 	f->SetLineColor(kBlue);
+
+	TFitResultPtr fitResult = graph->Fit(f,"EMS");	
 
 
 	const int numStates = fit->GetMaxNumStates();
@@ -67,6 +67,45 @@ TGraphErrors *PerformFit(const char *expFilename, const char *simFilename) {
 		fit->GetComponent(i,f->GetParameter(i))->Draw("SAME");
 	}
 
+	printf("\n");
+
+	//Do something interesting with the fit results see https://root.cern.ch/doc/master/classROOT_1_1Fit_1_1FitResult.html
+	//For example print the Chi Sq
+	printf("The Chi2 is: %f / %u\n", fitResult->Chi2(), fitResult->Ndf());
+
+	printf("The Covariance Matrix:\n");
+	printf("Status: ");
+	switch(fitResult->CovMatrixStatus()) {
+		case 0: 
+			printf("Not Calculated\n");
+			break;
+		case 1:
+			printf("Approximated\n");
+			break;
+		case 2:
+			printf("Made Positive Definate\n");
+			break;
+		case 3:
+			printf("Accurate\n");
+			break;
+		default:
+			printf("Unknown\n");
+			break;
+	}
+	for (unsigned int i=0;i<fitResult->NPar();i++) {
+		for (unsigned int j=0;j<fitResult->NPar();j++) {
+			printf("%8e, ",fitResult->CovMatrix(i,j));
+		}
+		printf("\n");
+	}
+
+	printf("The Correlation Matrix:\n");
+	for (unsigned int i=0;i<fitResult->NPar();i++) {
+		for (unsigned int j=0;j<fitResult->NPar();j++) {
+			printf("%8e, ",fitResult->Correlation(i,j));
+		}
+		printf("\n");
+	}
 	
 
 	return graph;
