@@ -16,7 +16,7 @@ class PeakFit {
 		TF1 *GetComponent(unsigned int state, double scale);
 
 	private:
-		std::vector<std::vector<float>> components_;
+		std::vector< std::vector<float> > components_; //Vector with indicesof bar, state.
 		void LoadComponents(const char* filename);
 		unsigned int maxNumStates_;
 		std::vector <TF1*> fitComp_;

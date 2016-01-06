@@ -1,7 +1,12 @@
+//#define USESPLINE //Enable the use of splines in the function.
+
 #include "PeakFit.h"
 #include <fstream>
 #include <sstream>
 #include <string>
+#ifdef USESPLINE
+#include "TSpline.h"
+#endif
 
 PeakFit::PeakFit(const char* filename) :
 	maxNumStates_(0)
@@ -93,9 +98,26 @@ double PeakFit::operator() (double *x, double *p) {
 	if (bar >= components_.size()) return 0;
 
 	double retVal = 0;
-	for (unsigned int i=0;i<components_[bar].size();i++) {
-		retVal += fabs(p[i+1]) * components_[bar][i];
+#ifdef USESPLINE
+	double yVal[components_.size()];
+	double xVal[components_.size()];
+	for (bar = 0; bar < components_.size(); bar++) {
+		xVal[bar] = bar;
+		retVal = 0;
+#endif
+
+		for (unsigned int state=0; state < components_[bar].size(); state++) {
+			retVal += fabs(p[state]) * components_[bar][state];
+		}
+
+#ifdef USESPLINE
+		yVal[bar] = retVal;
 	}
+
+	TSpline3 spline("spline",xVal,yVal,components_.size());
+	retVal = spline.Eval(x[0]);
+#endif
+
 	return retVal;
 }
 
