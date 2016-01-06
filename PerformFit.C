@@ -4,13 +4,12 @@
 #include <fstream>
 #include <sstream>
 #include <string>
-// #include <vector>
 #include "TF1.h"
 #include "TFitResult.h"
 #include "TGraphErrors.h"
 #include "TStyle.h" 
-#include "TMatrixD.h"
-// #include "MatrixFunctions.h"
+#include "TMatrix.h"
+#include "TAxis.h"
 
 #if defined(__CINT__) && !defined(__MAKECINT__) 
 	#include "PeakFit.so"
@@ -32,7 +31,6 @@ TGraphErrors *PerformFit(const char *expFilename, const char *simFilename) {
 		linestr.str(line);
 		unsigned int barNum;
 		if (!(linestr >> barNum)) continue;
-		//printf("Found bar %d\n",barNum);
 
 		float x0 = -1;
 		double A = 0.0, dA = 100.0;
@@ -62,17 +60,50 @@ TGraphErrors *PerformFit(const char *expFilename, const char *simFilename) {
 	graph->SetMarkerStyle(kOpenCircle);
 	graph->Draw("AP");
 
-	PeakFit *fit = new PeakFit(simFilename);
-	TF1 *f = new TF1("fit",fit,0,41,fit->GetMaxNumStates());
+	PeakFit *func = new PeakFit(simFilename);
+	TF1 *fFirst = new TF1("fitFirst",func,0,41,func->GetMaxNumStates());
+	const int numStates = func->GetMaxNumStates();
+	const unsigned int numParams = fFirst->GetNpar();
+
+	//Estimate the constants
+	for (unsigned int i=0;i<numParams;i++) {
+		fFirst->SetParameter(i,0.9 * graph->GetMaximum() / numStates);
+	}
+
+	TF1 *f = new TF1("fit",func,0,41,func->GetMaxNumStates());
 	f->SetLineColor(kBlue);
 
-	TFitResultPtr fitResult = graph->Fit(f,"EMS");	
 
-
-	const int numStates = fit->GetMaxNumStates();
-	for (int i=0;i<numStates;i++) {
-		fit->GetComponent(i,f->GetParameter(i))->Draw("SAME");
+	graph->Fit(fFirst,"QR");	
+	for (unsigned int i=0;i<numParams;i++) {
+		double par = fFirst->GetParameter(i);
+		if (par < 0) par *= -1;
+		f->SetParameter(i,par);
 	}
+	TFitResultPtr fitResult = graph->Fit(f,"VRMES");	
+
+	//Report fit results.
+	printf("\nRESULTS\nNO. NAME %-12s %-12s %-12s %-12s\n","VALUE","ERROR","MINOS LOWER","MINOS UPPER");
+	for (unsigned int i=0;i<numParams;i++) {
+		printf("%3d %4s % 12.5e % 12.5e",i,f->GetParName(i),f->GetParameter(i),f->GetParError(i));
+		if (fitResult->HasMinosError(i)) {
+			if (fitResult->LowerError(i)) printf(" % 12.5e", fitResult->LowerError(i));
+			else printf("%12s"," ");
+			if (fitResult->UpperError(i)) printf(" % 12.5e", fitResult->UpperError(i));
+			else printf("%12s"," ");
+			printf("\n");
+		}
+		else printf("\n");
+	}
+
+	//Plot the components
+	for (int i=0;i<numStates;i++) {
+		func->GetComponent(i,f->GetParameter(i))->Draw("SAME");
+	}
+
+	//Re scale the y axis to show from 0 to max.
+	graph->GetYaxis()->SetLimits(0,graph->GetYaxis()->GetXmax());
+	graph->GetYaxis()->SetRangeUser(0,graph->GetYaxis()->GetXmax());
 
 	printf("\n");
 
@@ -83,21 +114,18 @@ TGraphErrors *PerformFit(const char *expFilename, const char *simFilename) {
 
 //define matrix and vector variables
 
-	int nparStates = fitResult->NPar();
-	double fitvalues[nparStates];
+	double fitvalues[numParams];
 	double totalerror;
-	TMatrixDSym Covar(nparStates);
-	TMatrixDSym Corr(nparStates);
 
 //set matrix and vectors from fit
 
-		for (int i=0;i<nparStates;i++) {
+		for (unsigned int i=0;i<numParams;i++) {
 			fitvalues[i] = f->GetParameter(i);
 		}
 
 
-	Covar = fitResult->GetCovarianceMatrix();
-	Corr = fitResult->GetCorrelationMatrix();
+	TMatrixDSym covar = fitResult->GetCovarianceMatrix();
+	TMatrixDSym corr = fitResult->GetCorrelationMatrix();
 /*
 //Calculate total error from Covar matrix and fitvalues vector
 	totalerror = fitvalues * Covar * fitvalues;
@@ -128,22 +156,24 @@ TGraphErrors *PerformFit(const char *expFilename, const char *simFilename) {
 			printf("Unknown\n");
 			break;
 	}
+/*
 	for (unsigned int i=0;i<fitResult->NPar();i++) {
 		for (unsigned int j=0;j<fitResult->NPar();j++) {
 			printf("%8e, ",fitResult->CovMatrix(i,j));
 		}
 		printf("\n");
 	}
-	for (unsigned int i=0;i<nparStates;i++) {
-		for (unsigned int j=0;j<nparStates;j++) {
-			printf("%8e, ",Covar(i,j));
+*/
+	for (unsigned int i=0;i<numParams;i++) {
+		for (unsigned int j=0;j<numParams;j++) {
+			printf("% 8e, ",covar(i,j));
 		}
 		printf("\n");
 	}
 	printf("The Correlation Matrix:\n");
 	for (unsigned int i=0;i<fitResult->NPar();i++) {
 		for (unsigned int j=0;j<fitResult->NPar();j++) {
-			printf("%8e, ",fitResult->Correlation(i,j));
+			printf("% 8e, ",fitResult->Correlation(i,j));
 		}
 		printf("\n");
 	}
