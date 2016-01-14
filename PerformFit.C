@@ -33,10 +33,11 @@ TGraphErrors *PerformFit(const char *expFilename, const char *simFilename) {
 		if (!(linestr >> barNum)) continue;
 
 		float x0 = -1;
-		double A = 0.0, dA = 100.0;
+		double A = 0.0, dA = 100.0, s = 0.0;
 		double sumA = 0.0, dSumA = 0.0, dSumAcalc = 0.0;
 		bool first = true;
-		while (linestr >> x0 >> A >> dA) {
+		while (linestr >> x0 >> A >> dA >> s) {
+			//We skip the first entry as it is the gamma flash.
 			if (first) {
 				first = false;
 				continue;
@@ -56,7 +57,6 @@ TGraphErrors *PerformFit(const char *expFilename, const char *simFilename) {
 	}
 
 	file.close();
-
 
 	graph->SetMarkerStyle(kOpenCircle);
 	graph->Draw("AP");

@@ -22,7 +22,7 @@ use strict;
 use Getopt::Long;
 
 #The list of column numbers to store starting from 0.
-my @columnsToCapture = (1, 3, 4);
+my @columnsToCapture = (1, 3, 4, 5);
 
 #Hash of output data 
 my %outData;
