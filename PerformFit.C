@@ -43,7 +43,8 @@ TGraphErrors *PerformFit(const char *expFilename, const char *simFilename) {
 			}
 			//maybe set all dA to 300 or if too large set to sqrt(A)
 			if (dA < 50) {dA = 50 + sqrt(A);}
-			if (dA > 500) {dA = 300 + sqrt(A);}
+			if (dA > 200) {dA = 200 + sqrt(A);}
+			dA += 100;
 			sumA += A;
 			dSumAcalc = dSumA;
 			dSumA = sqrt(pow(dSumAcalc,2) + pow(dA,2));
@@ -111,24 +112,54 @@ TGraphErrors *PerformFit(const char *expFilename, const char *simFilename) {
 	//For example print the Chi Sq
 	printf("The Chi2 is: %f / %u\n", fitResult->Chi2(), fitResult->Ndf());
 
-
 //define matrix and vector variables
 
-	double fitvalues[numParams];
+	TMatrix fitvalues(1,numStates);
+	TMatrix errvalues(1,numStates);
+	TMatrix fitvaluesT(numStates,1);
+
 	double totalerror;
 
 //set matrix and vectors from fit
 
+
 		for (unsigned int i=0;i<numParams;i++) {
-			fitvalues[i] = f->GetParameter(i);
+			fitvalues(0,i) = abs(f->GetParameter(i));
+			errvalues(0,i) = f->GetParError(i);
 		}
 
 
+//	TMatrix fitvaluesT(1,numParams);
+
+// TMatrix result(Vmat, kTransposeMult,TMatrix(M,kMult,Vmat) );
+
+//	fitvaluesT(Transpose(fitvalues));
+
 	TMatrixDSym covar = fitResult->GetCovarianceMatrix();
+	covar.Print();
+
+
 	TMatrixDSym corr = fitResult->GetCorrelationMatrix();
+
+	TMatrix tempp(corr,TMatrix::kMultTranspose,errvalues);
+	tempp.Print();
+
+	errvalues.Print();
+
+	TMatrix temmp(errvalues,TMatrix::kMult,tempp);
+	temmp.Print();
+
+	TMatrix vartotal(errvalues,TMatrix::kMult,TMatrix(corr,TMatrix::kMultTranspose,errvalues) );
+
+	vartotal.Print();
+
+	double stddevtotal = sqrt(vartotal(0,0));
+
+
+//	totalerror = fitvalues * covar * fitvaluesT;
 /*
 //Calculate total error from Covar matrix and fitvalues vector
-	totalerror = fitvalues * Covar * fitvalues;
+	
 
 	//GetCovarMatrix
 	//GetVarianceMatrix
@@ -156,14 +187,8 @@ TGraphErrors *PerformFit(const char *expFilename, const char *simFilename) {
 			printf("Unknown\n");
 			break;
 	}
-/*
-	for (unsigned int i=0;i<fitResult->NPar();i++) {
-		for (unsigned int j=0;j<fitResult->NPar();j++) {
-			printf("%8e, ",fitResult->CovMatrix(i,j));
-		}
-		printf("\n");
-	}
-*/
+
+
 	for (unsigned int i=0;i<numParams;i++) {
 		for (unsigned int j=0;j<numParams;j++) {
 			printf("% 8e, ",covar(i,j));
@@ -177,7 +202,22 @@ TGraphErrors *PerformFit(const char *expFilename, const char *simFilename) {
 		}
 		printf("\n");
 	}
-	
+
+	double sigtotal = 0.0;
+
+		printf("The Fit Values matrix transposed [1,n]:\n");
+	for (unsigned int i=0;i<fitResult->NPar();i++) {
+			printf("%8e, ",fitvalues(0,i));
+			sigtotal += fitvalues(0,i);
+		printf("\n");
+	}
+
+	printf("Total cross section:\n");
+	printf("%8e, ",sigtotal);
+
+	printf("\n Total standard dev:\n");
+	printf("%8e, ",stddevtotal);
+	printf("\n graph:\n");
 
 	return graph;
 }
