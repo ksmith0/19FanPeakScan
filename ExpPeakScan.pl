@@ -78,7 +78,7 @@ sub ScanTable {
 
 	#Loop over the array again searching for the peak data
 	while (my $line = shift(@_)) {
-		#If we find the text BarID then the table has ended.
+		#If we find a line with no numbers, commas, periods, E, pluses or minuses we are at the end of the table.
 		if ($tableFound && $line =~ m/[^\d,\.E\+-\s]/) {
 			unshift @_, $line;
 			last;
@@ -116,15 +116,22 @@ sub UpdateOutputData {
 	#Stuff each line of the file into an element of an array.
 	my @inData = <FILE>;
 
+	my $prevBar = -1;
 	#Loop over the array looking for "Bar \d+"
 	while (my $line = shift(@inData)) {
 		#Check if line matches specified regular expression
 		if ($line=~m/Bar (\d+)/i) {
 			#Store the bar number form the regex match
 			my $bar = $1;
+			if ($bar == $prevBar) {
+				print STDERR "ERROR: Two tables for bar $bar in file '$_[0]'\n";
+				exit;
+			}
 			
 			#Scan the data table
 			$outData{$bar} = ScanTable(@inData);
+
+			$prevBar = $bar;
 		}
 	}
 
