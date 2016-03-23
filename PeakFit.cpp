@@ -77,6 +77,57 @@ TF1 *PeakFit::GetComponent(unsigned int state, double scale) {
 
 	return fitComp_[state];
 }
+std::vector< int > PeakFit::GetBarMap(const Float_t barAngles[][2]) {
+	std::vector< int > barMap;
+
+	float lastAngle = 0;
+	while (barMap.size() < GetNumBars()) {
+		int minIndex = -1;
+		for (unsigned int bar=0; bar < GetNumBars(); bar++) {
+			float angle = barAngles[bar][0];
+			if (angle <= lastAngle) continue;
+			if (minIndex < 0) minIndex = bar;
+			else if (angle < barAngles[minIndex][0]) minIndex = bar;
+		}
+		barMap.push_back(minIndex);
+		lastAngle = barAngles[minIndex][0];
+	}
+
+	return barMap;
+}
+TGraph *PeakFit::GetFitVsAngle(double *scales, const Float_t barAngles[][2]) {
+	std::vector< int > barMap = GetBarMap(barAngles);
+
+	TGraph *gr = new TGraph();
+
+	for (unsigned int barIndex = 0; barIndex < GetNumBars(); barIndex++) {
+		int bar = barMap[barIndex];
+		double value = 0;
+		for (unsigned int state = 0; state < GetNumStates(bar); state++) {
+			value += components_[bar][state] * scales[state];
+		}
+		std::cout << "Bar Index: " << barIndex << " Bar " << bar << " value " << value << "\n";
+		gr->SetPoint(gr->GetN(), barAngles[bar][0], value);
+
+	}
+	gr->SetLineColor(kBlue);
+	gr->SetLineWidth(2);
+
+	return gr;
+}
+TGraph *PeakFit::GetComponentVsAngle(unsigned int state, double scale, const Float_t barAngles[][2]) {
+	std::vector< int > barMap = GetBarMap(barAngles);
+	TGraph *gr = new TGraph();
+
+	for (unsigned int barIndex = 0; barIndex < GetNumBars(); barIndex++) {
+		int bar = barMap[barIndex];
+		gr->SetPoint(gr->GetN(), barAngles[bar][0], components_[bar][state] * scale);
+	}
+	gr->SetLineColor(kRed);
+	gr->SetLineWidth(2);
+
+	return gr;
+}
 
 PeakFit::~PeakFit() {
 	while (!fitComp_.empty()) {

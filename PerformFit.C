@@ -12,15 +12,32 @@
 #include "TAxis.h"
 
 #if defined(__CINT__) && !defined(__MAKECINT__) 
-	#include "PeakFit.so"
+//	#include "PeakFit.so"
 #else
 	#include "PeakFit.h"
 #endif
 
+
 TGraphErrors *PerformFit(const char *expFilename, const char *simFilename) {
+	TCanvas *canvas = new TCanvas("canvas","Canvas");
+	canvas->Divide(1,2);
+
+	Float_t barAngles[42][2] = {
+		{158.1, 10.3}, {154.4, 8.7}, {150.3, 7.3}, {145.9, 6.2}, {141.3, 5.2},
+		{136.5,  4.4}, {131.6, 3.7}, {125.2, 3.0}, {120.2, 2.4}, {115.1, 2.0},
+		{110.0,  1.5}, {105.0, 1.1}, {100.0, 0.7}, { 95.0, 0.4}, { 88.0, 0.1},
+		{ 83.1,  0.5}, { 78.3, 0.9}, { 73.6, 1.2}, { 68.9, 1.6}, { 64.3, 2.0},
+		{ 59.8,  2.4}, { 54.0, 3.0}, { 49.6, 3.6}, { 45.2, 4.2}, { 40.9, 4.9},
+		{ 36.8,  5.7}, { 32.7, 6.6}, { 28.9, 7.8}, { 88.5, 0.1}, { 93.6, 0.2},
+		{ 98.6,  0.6}, {103.5, 1.0}, {108.4, 1.4}, {113.2, 1.8}, {117.9, 2.2},
+		{149.6,  7.0}, {145.6, 6.0}, {141.5, 5.2}, {137.2, 4.5}, {132.9, 3.8},
+		{128.4,  3.3}, {123.9, 2.8}
+	};
+
 	gStyle->SetOptFit(11111);
 
 	TGraphErrors *graph = new TGraphErrors();
+	TGraphErrors *graphAngles = new TGraphErrors();
 	
 	std::ifstream file(expFilename);
 
@@ -54,13 +71,20 @@ TGraphErrors *PerformFit(const char *expFilename, const char *simFilename) {
 		int point = graph->GetN();
 		graph->SetPoint(point, barNum, sumA);
 		graph->SetPointError(point, 0, dSumA);
+		graphAngles->SetPoint(point, barAngles[barNum][0], sumA);
+		graphAngles->SetPointError(point, barAngles[barNum][1], dSumA);
 	}
 
 	file.close();
 
+	canvas->cd(1);
 	graph->SetMarkerStyle(kOpenCircle);
 	graph->Draw("AP");
+	canvas->cd(2);
+	graphAngles->SetMarkerStyle(kOpenCircle);
+	graphAngles->Draw("AP");
 
+	canvas->cd(1);
 	PeakFit *func = new PeakFit(simFilename);
 	TF1 *fFirst = new TF1("fitFirst",func,0,41,func->GetMaxNumStates());
 	const int numStates = func->GetMaxNumStates();
@@ -97,14 +121,22 @@ TGraphErrors *PerformFit(const char *expFilename, const char *simFilename) {
 		else printf("\n");
 	}
 
+	canvas->cd(2);
+	func->GetFitVsAngle(f->GetParameters(),barAngles)->Draw("L");
+
 	//Plot the components
 	for (int i=0;i<numStates;i++) {
+		canvas->cd(1);
 		func->GetComponent(i,f->GetParameter(i))->Draw("SAME");
+		canvas->cd(2);
+		func->GetComponentVsAngle(i,f->GetParameter(i),barAngles)->Draw("L");
 	}
 
 	//Re scale the y axis to show from 0 to max.
 	graph->GetYaxis()->SetLimits(0,graph->GetYaxis()->GetXmax());
 	graph->GetYaxis()->SetRangeUser(0,graph->GetYaxis()->GetXmax());
+	graphAngles->GetYaxis()->SetLimits(0,graphAngles->GetYaxis()->GetXmax());
+	graphAngles->GetYaxis()->SetRangeUser(0,graphAngles->GetYaxis()->GetXmax());
 
 	printf("\n");
 
